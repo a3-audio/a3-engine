@@ -1,0 +1,66 @@
+# a3-engine — the A³ audio engine, parked
+
+**Parked 2026-10-06. Not built, not packaged, not run.** No A³ device builds or runs it. REAPER remains the audio engine of A³ Core.
+
+## What this is
+
+The C++/JUCE audio-engine foundation written as "Plan 1" (2026-09-21/22) of the A³ app: the first
+pieces of an engine that could one day render what REAPER renders today. It was developed inside
+`a3-motion-ui` (`src/a3-audio-engine/`, merged there as `0fd6623`, last touched at `ff56cf3`) behind
+the CMake switch `A3_AUDIO_ENGINE_ENABLED`, off in the device build.
+
+| Here | Came from (a3-motion-ui) | What it does |
+|---|---|---|
+| `src/a3-audio-engine/ControlSurface.{hh,cc}` | `src/a3-audio-engine/` | Hands per-channel directions from a control thread to the audio thread without locks. |
+| `src/a3-audio-engine/SpatBackendInternal.{hh,cc}` | `src/a3-audio-engine/` | A Motion `SpatBackend` that calls the `ControlSurface` instead of sending OSC. |
+| `src/a3-audio-engine/OutputOrder.{hh,cc}` | `src/a3-audio-engine/` | Maps layout outputs to device channels, so a speaker order can be corrected. |
+| `src/a3-audio-engine/SpeakerTest.{hh,cc}` | `src/a3-audio-engine/` | Walks pink noise at −40 dBFS from box to box (passed on the rig 2026-09-22, 4.1, no clicks). |
+| `src/a3-audio-engine/ChunkedRender.{hh,cc}` | `src/a3-audio-engine/` | The render loop: speaker test → layout buffer → output order, in fixed chunks. |
+| `src/a3-audio-engine/CMakeLists.txt` | `src/a3-audio-engine/` | The static library target as it was; it relies on the top-level CMake of a3-motion-ui. |
+| `tests/unit/*.cc` | `src/a3-motion-tests/unit/` | GoogleTest suites for the five units above (27 tests). |
+| `host/motion-ui-host.cc` | `src/a3-motion-ui/StandaloneApp.*`, `A3MotionAudioProcessor.*` | **An extract, not a compile unit**: the `#ifdef A3_AUDIO_ENGINE_ENABLED` blocks that owned `AudioDeviceManager`/`AudioProcessorPlayer`, switched on `JUCE_JACK` and read `A3_AUDIO_DEVICE_TYPE` / `A3_AUDIO_OUTPUT_DEVICE` / `A3_SPEAKER_TEST`. |
+
+File headers are kept as they were in a3-motion-ui (GPL-3.0-or-later). The commit history lives in
+a3-motion-ui: `db8e8a2` (ControlSurface) … `53efd30` (speaker test at −40 dBFS), merged in `0fd6623`,
+review fixes `4ef5d80`.
+
+## Why it is here and why it is parked
+
+- **2026-10-06, decided by the maintainer:** a3-motion-ui is a pure OSC interface and contains no
+  audio functions. Core does the audio processing, StemDeck plays. So the engine library, the
+  channel strip and a future `a3-engine-bench` left a3-motion-ui; they were parked under `engine/` in
+  a3-core for a few hours, then given **this repository** (decided the same night). a3-motion-ui now builds with no audio
+  device type compiled in (`JUCE_ALSA=0`, `JUCE_JACK=0`), held by its test `MotionIsPureOsc`.
+- **2026-10-06 (night):** feature builds stopped; the system is stabilised on today's feature set
+  with REAPER. Plan 2 (the channel strip) and Plan 3 (IEM) wait. Hence parked: kept, not built.
+
+The plans and their reasoning (workspace notes, not part of this repository):
+
+- `.claude/notes/2026-09-21-a3-app-und-plattform.md` — the A³ app design, Plan 1, "Wer das Audio
+  hostet", the handover list from Plan 1 to Plan 2, the twelve named outputs.
+- `.claude/notes/2026-10-06-a3-app-plan-2-channel-strip.md` — Plan 2 (channel strip,
+  level-identical to REAPER), "Decided 2026-10-06" and "Parked 2026-10-06".
+
+## What it would need to build
+
+Nothing of this is wired up, on purpose. Whoever takes it up needs:
+
+1. **CMake (3.16 or newer while the precompiled header is kept) and JUCE 9.0.3** (the one JUCE every A³ product builds against; installed as a
+   CMake package, `find_package(JUCE CONFIG REQUIRED)`), plus GoogleTest (`libgtest-dev`) for the
+   tests. The units use `juce_audio_basics` only.
+2. **A top-level `CMakeLists.txt`** in this repository: `src/a3-audio-engine/CMakeLists.txt` calls
+   `a3_precompile_juce_header()` (defined in a3-motion-ui's top-level CMake) and links
+   `a3-motion-engine`. Either drop the precompiled header or bring the helper along.
+3. **The Motion coupling decided anew.** `SpatBackendInternal` implements
+   `a3-motion-engine/backends/SpatBackend.hh` from a3-motion-ui, and its test drives a
+   `MotionEngine` through the constructor that takes a backend. With Motion as a pure OSC device,
+   Core would rather feed the `ControlSurface` from the OSC it already receives; then
+   `SpatBackendInternal` and its test go, and the engine needs nothing from a3-motion-ui.
+4. **A host.** `host/motion-ui-host.cc` shows how the app opened a device; Plan 2 decided against
+   JUCE's JACK device (it auto-connects and registers ghost ports) in favour of registering twelve
+   named JACK ports itself.
+5. **The open handover items** from Plan 1 (logger ownership, thread-safe `OutputOrder`,
+   non-throwing `deviceChannelFor()`, >31-channel buffers, `ScopedNoDenormals`, an end-to-end test
+   replacing `TheEngineCanSendThroughIt`) — listed in the first note above.
+
+Until then: do not add it to the package, the installer or CI.
