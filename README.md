@@ -1,5 +1,7 @@
 # a3-engine — the A³ audio engine
 
+Archived on 2026-10-27: the program and its history live in a3-core (https://github.com/a3-audio/a3-core). This repository is read-only.
+
 **Status 2026-10-17.** Plan 2 and Plan 3 are the code that is built here. Plan 2: the channel strip
 (`src/a3-engine/`: TRIM, 3-band EQ, VOLUME, isolator, level-identical to REAPER's chain, tested in
 `tests/engine/`) and `a3-engine-bench` (`bench/`), a headless JACK client with four strips. The Plan 1
